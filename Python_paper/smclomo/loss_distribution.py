@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import scipy.stats as st
 from scipy.optimize import minimize
+import numba as nb
 
 
 def sim_gam_par(n, k, α, θ):
@@ -49,6 +50,51 @@ def sim_gam_par(n, k, α, θ):
                                np.random.uniform(size = n))
     return(binom_rvs * gamma_rvs + (1 - binom_rvs) * par_rvs)
 
+@nb.jit(nopython = True)
+def reg_inc_gamma(a,x):
+    """
+    Compute the regularized incomplete gamma function.
+
+    Parameters
+    ----------
+    a : float 
+        parameter of the gamma function.
+    x : float
+        upper bound of the integral.
+
+    Returns
+    -------
+    float
+    Value of the regularized incomplete gamma function
+    
+    Example
+    -------
+    a, x = 3, 1 
+    sp.gammainc(a, x),  reg_inc_gamma(a,x)
+    """
+    xam = -x + a * np.log(x)
+    if x <= 1 + a:
+        s = 1/a
+        r = s
+        for j in np.arange(1, 61, 1):
+            r = r * x / (a + j)
+            s = s + r
+            if (abs(r /s) < 1e-15):
+                break
+        gin  = np.exp(xam) * s
+        ga = ma.gamma(a)
+        gip = gin / ga
+        gim = ga - gin
+    else:
+        t0 = 0
+        for j in np.flip(np.arange(1, 61, 1)):
+            t0 = (j - a) / (1 + j / (x + t0))
+        gim  = np.exp(xam) / (x + t0)
+        ga = ma.gamma(a)
+        gin = ga - gim
+        gip = 1 - gim / ga
+    return(gip)
+
 
 def logp_gam_par(X):
     """
@@ -78,28 +124,28 @@ def logp_gam_par(X):
     minRes
     """
     def logp(parms):
-        k, α, θ = tuple(parms)
+        k, α, θ = parms
         
         if np.all(parms > 0):
             β = θ / (k + α)
-            r = α*sp.gamma(k)*  sp.gammainc(k,θ / β) * np.exp(k+α)*(k+α)**(-k) / \
-            (1+ α*sp.gamma(k) * sp.gammainc(k, θ / β) * np.exp(k+α)*(k+α)**(-k))
+            r = α*ma.gamma(k)*  reg_inc_gamma(k, θ / β) * np.exp(k+α)*(k+α)**(-k) / \
+            (1+ α*ma.gamma(k) * reg_inc_gamma(k, θ / β) * np.exp(k+α)*(k+α)**(-k))
             if β > 0 and r > 0 and r < 1:
                 X1 = X[X < θ]
                 X2 = X[X >= θ]
-                F1 = sp.gammainc(k, θ / β)
+                F1 = reg_inc_gamma(k, θ / β)
                     
-                return(len(X1) * (np.log(r) - np.log(F1) - np.log(sp.gamma(k)) - \
-                                  k * np.log(β)) - sum(X1) / β +\
-                       (k-1) * sum(np.log(X1)) + len(X2) *(np.log(1-r) +\
-                        np.log(α) + α * np.log(θ)) - (α + 1) * sum(np.log(X2))
+                return(len(X1) * (np.log(r) - np.log(F1) - np.log(ma.gamma(k)) - \
+                                  k * np.log(β)) - np.sum(X1) / β +\
+                       (k-1) * np.sum(np.log(X1)) + len(X2) *(np.log(1-r) +\
+                        np.log(α) + α * np.log(θ)) - (α + 1) * np.sum(np.log(X2))
                        )
             else: 
                 return(-np.inf)
             
         else:
             return(-np.inf)
-    return logp
+    return nb.jit(nopython = True)(logp)
 
 
 
@@ -120,13 +166,15 @@ def logd_gam_par(parms):
     values.
     """
     k, α, θ = parms[:,0], parms[:,1], parms[:,2]
-    β = θ / (k + α)
-    r = α*sp.gamma(k)*  sp.gammainc(k,θ / β) * np.exp(k+α)*(k+α)**(-k) / \
-        (1+ α*sp.gamma(k) * sp.gammainc(k, θ / β) * np.exp(k+α)*(k+α)**(-k))
-    F1 = sp.gammainc(k, θ / β)
+    β, r, F1 = np.zeros(len(α)), np.zeros(len(α)), np.zeros(len(α))
+    s0 = np.logical_and(np.logical_and(k > 0, θ > 0),α > 0)
+    β[s0] = θ[s0] / (k[s0] + α[s0])
+    r[s0] = α[s0]*sp.gamma(k[s0])*  sp.gammainc(k[s0],θ[s0] / β[s0]) * np.exp(k[s0]+α[s0])*(k[s0]+α[s0])**(-k[s0]) / \
+        (1+ α[s0]*sp.gamma(k[s0]) * sp.gammainc(k[s0], θ[s0] / β[s0]) * np.exp(k[s0]+α[s0])*(k[s0]+α[s0])**(-k[s0]))
+    F1[s0] = sp.gammainc(k[s0], θ[s0] / β[s0])
     def logd(x):
         res = np.zeros(len(α))
-        s = np.logical_and(β > 0, r > 0, r < 1)
+        s = np.logical_and(np.logical_and(β > 0, r > 0), r < 1)
         s1 = np.logical_and(s, x < θ)
         s2 = np.logical_and(s, x >= θ)
         
@@ -206,9 +254,8 @@ def logp_wei_par(X):
     minRes = minimize(costFn, θ0,bounds=bnds)
     minRes
     """
-    # parms = particles.to_numpy()[4]
     def logp(parms):
-        k, α, θ = tuple(parms)
+        k, α, θ = parms
         
         if np.all(parms > 0):
             β = (k / (k + α))**(1 / k) * θ
@@ -221,16 +268,16 @@ def logp_wei_par(X):
                     
                 return(len(X1) * \
                        ( np.log(r) + np.log(k) - k * np.log(β) ) + \
-                       (k-1) * sum(np.log(X1)) - sum( (X1/ β)**k ) -\
+                       (k-1) * np.sum(np.log(X1)) - np.sum( (X1/ β)**k ) -\
                            len(X1) * np.log(F1) + len(X2) *(np.log(1-r) +\
-                        np.log(α) + α * np.log(θ)) - (α + 1) * sum(np.log(X2))
+                        np.log(α) + α * np.log(θ)) - (α + 1) * np.sum(np.log(X2))
                        )
             else: 
                 return(-np.inf)
             
         else:
             return(-np.inf)
-    return logp
+    return nb.jit(nopython=True)(logp)
 
 
 
@@ -250,13 +297,16 @@ def logd_wei_par(parms):
     values.
     """
     k, α, θ = parms[:,0], parms[:,1], parms[:,2]
-    β = (k / (k + α))**(1 / k) * θ
-    r = (α / θ)*(1 - np.exp(-(k + α) / k)) / (α / θ + (k / θ) * \
-                                                      np.exp(-(k+α)/k))
-    F1 = 1 - np.exp(-(θ / β)**k)
+    F1, β, r = np.zeros(len(α)), np.zeros(len(α)), np.zeros(len(α))
+    s0 = np.logical_and(np.logical_and(k > 0, α > 0), θ > 0)    
+    β[s0] = (k[s0] / (k[s0] + α[s0]))**(1 / k[s0]) * θ[s0]
+    r[s0] = (α[s0] / θ[s0])*(1 - np.exp(-(k[s0] + α[s0]) / k[s0])) / (α[s0] / θ[s0] + (k[s0] / θ[s0]) * \
+                                                      np.exp(-(k[s0] + α[s0]) / k[s0]))
+    s00 = np.logical_and(s0, β > 1e-300)
+    F1[s00] = 1 - np.exp(-(θ[s00] / β[s00])**k[s00])
     def logd(x):
         res = np.zeros(len(α))
-        s = np.logical_and(β > 0, r > 0, r < 1)
+        s = np.logical_and(np.logical_and(β > 1e-300, r > 0), r < 1)
         s1 = np.logical_and(s, x < θ)
         s2 = np.logical_and(s, x >= θ)
         
@@ -272,10 +322,7 @@ def logd_wei_par(parms):
         res[np.where(s2)] = res2
         res[np.where(np.invert(s))] = - np.inf
         return(res)
-    return logd
-
-
-
+    return  logd
 
 def phi(z):
     """
@@ -290,6 +337,21 @@ def phi(z):
     CDF of unit normal distribution
     """
     return( 1 / 2 * (1 + sp.erf(z /np.sqrt(2))))
+
+@nb.jit(nopython=True)
+def phi2(z):
+    """
+    Cdf of unit normal distribution
+
+    Parameters
+    ----------
+    z : Float
+
+    Returns
+    -------
+    CDF of unit normal distribution
+    """
+    return( 1 / 2 * (1 + ma.erf(z /np.sqrt(2))))
 
 def sim_lnorm_par(n, σ, α, θ):
     """
@@ -359,28 +421,28 @@ def logp_lnorm_par(X):
     minRes
     """
     def logp(parms):
-        σ, α, θ = tuple(parms)
+        σ, α, θ = parms
         
         if np.all(parms > 0):
             μ = np.log(θ) - α * σ**2
-            r = (α * σ  *np.sqrt(2* ma.pi) *phi(α * σ) ) /  \
-                (α * σ  *np.sqrt(2* ma.pi) *phi(α * σ) + np.exp(-(α*σ)**2 / 2))
+            r = (α * σ  *np.sqrt(2* ma.pi) *phi2(α * σ) ) /  \
+                (α * σ  *np.sqrt(2* ma.pi) *phi2(α * σ) + np.exp(-(α*σ)**2 / 2))
             if r > 0 and r < 1:
                 X1 = X[X < θ]
                 X2 = X[X >= θ]
-                F1 = phi(α * σ)
+                F1 = phi2(α * σ)
                     
                 return(len(X1) * (np.log(r) - np.log(F1 * σ * np.sqrt(2 * ma.pi)))\
-                       - sum(np.log(X1)) - sum((np.log(X1) - μ)**2) / 2 / σ**2 \
+                       - np.sum(np.log(X1)) - np.sum((np.log(X1) - μ)**2) / 2 / σ**2 \
                            + len(X2) *(np.log(1-r) + np.log(α) + α * np.log(θ))\
-                               - (α + 1) * sum(np.log(X2))
+                               - (α + 1) * np.sum(np.log(X2))
                        )
             else: 
                 return(-np.inf)
             
         else:
             return(-np.inf)
-    return logp
+    return nb.jit(nopython=True)(logp)
 
 def logd_lnorm_par(parms):
     """

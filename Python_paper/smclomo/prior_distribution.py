@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 import scipy.stats as st
 import scipy.special as sp
+import math as ma
+import numba as nb
 
 
 def logp_gamma_prior(a, b):
@@ -34,11 +36,13 @@ def logp_gamma_prior(a, b):
         if np.all(parms > 0):
             return(
                 np.dot((a - 1), np.log(parms)) - np.dot(parms , b) + 
-                np.dot(a , np.log(b)) - sum(np.log(sp.gamma( a )))
+                np.dot(a , np.log(b)) - np.sum(np.log(
+                    np.array([ma.gamma( a_scalar ) for a_scalar in a])
+                ))
                    )
         else:
            return(-np.inf)
-    return logp_prior
+    return nb.jit(nopython=True)(logp_prior)
 
 def sim_gamma_prior(a, b, parms_names, popSize):
     """

@@ -6,10 +6,11 @@ Created on Thu Sep  3 17:21:51 2020
 """
 
 import numpy as np 
+import numba as nb
 from .loss_distribution import logp_wrap, logd_wrap
 
-
-def temperature_search(particles, log_prob, target, γ_prev, err):
+@nb.jit(nopython=True)
+def temperature_search(particles, log_probs, target, γ_prev, err):
     """
     Provides the next temperature given the previous generation of particles.
 
@@ -46,7 +47,7 @@ def temperature_search(particles, log_prob, target, γ_prev, err):
     """
     γ_up, γ_down = 2, γ_prev
     popSize, d = particles.shape
-    log_probs = np.array([log_prob(particle) for particle in particles])
+    
     if np.any(np.isnan(log_probs)):
         log_probs[np.where(np.isnan(log_probs))] = -np.inf
     while γ_up - γ_down > err:
@@ -61,7 +62,7 @@ def temperature_search(particles, log_prob, target, γ_prev, err):
             ESS = 0
         else:
             W = np.exp(logw - max(logw)) / np.sum(np.exp(logw - max(logw)))
-            ESS =  1 / sum(W**2)
+            ESS =  1 / np.sum(W**2)
         
 
         if ESS == target:
@@ -79,9 +80,8 @@ def temperature_search(particles, log_prob, target, γ_prev, err):
          
         W = np.exp(logw - max(logw)) / np.sum(np.exp(logw - max(logw)))
 
-        ESS =  1 / sum(W**2)
-
-    return(γ_new, logw, W, int(ESS))    
+        ESS =  1 / np.sum(W**2)
+    return(γ_new, logw, W, int(ESS))  
 
 
 

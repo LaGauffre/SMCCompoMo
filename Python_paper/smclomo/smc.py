@@ -94,9 +94,10 @@ def smc_likelihood_annealing(X, loss_model, parms_names, popSize, model_prior, a
         
         g = g + 1
         particles = clouds[g-1][parms_names].values
+        log_probs = np.array([log_prob(particle) for particle in particles])
         # Updating temperature sequence 
         γ, logw, W, ESS = temperature_search(particles,
-                                             log_prob,ρ * popSize, γ_seq[-1],
+                                             log_probs,ρ * popSize, γ_seq[-1],
                                              err)
         
        
@@ -122,6 +123,7 @@ def smc_likelihood_annealing(X, loss_model, parms_names, popSize, model_prior, a
                                   for particle in particles_resampled])
         particles_trial, acc_trial = res_trial[:,0:d], res_trial[:,-1]
         n_steps = int(min(n_step_max,max(2,np.ceil(np.log(1-c) / np.log(1-(np.mean(acc_trial)-1e-6))))))
+        
         def move_particle(particle):
             trace, acceptance = Gibbs_move(n_steps,np.diag(cloud_cov), log_prob, 
                                            log_prob_prior, particle, γ, d)

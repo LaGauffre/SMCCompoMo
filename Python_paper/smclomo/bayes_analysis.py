@@ -13,8 +13,8 @@ from .smc import smc_likelihood_annealing, smc_data_by_batch
 
 def fit_model_gibbs(X, loss_model, model_prior, a, b, popSize, step_size,  
                     init_parms, parms_names):
-    log_prob, log_prob_prior = logp_prior_wrap(model_prior, a, b),\
-    logp_wrap(X, loss_model)
+    log_prob_prior, log_prob = logp_prior_wrap(model_prior, a, b),\
+        logp_wrap(X, loss_model)
     trace, acceptance = Gibbs_move(popSize * 2, step_size, log_prob,\
                                    log_prob_prior, init_parms, 1, len(parms_names))
     trace_gibbs = pd.DataFrame(trace).iloc[int(popSize):int(popSize * 2)]
