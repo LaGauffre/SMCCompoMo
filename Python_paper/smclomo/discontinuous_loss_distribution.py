@@ -51,8 +51,8 @@ def sim_dis_gam_par(n, r, m, α, γ, p):
                                np.random.uniform(size = n))
     return(binom_rvs * gamma_rvs + (1 - binom_rvs) * par_rvs)
 
-n, r, m, α, γ, p = 10, 2, 3, 1/2, 5, 1/3
-X = sim_dis_gam_par(n, r, m, α, γ, p)
+# n, r, m, α, γ, p = 10, 2, 3, 1/2, 5, 1/3
+# X = sim_dis_gam_par(n, r, m, α, γ, p)
 
 def logp_dis_gam_par(X):
     """
