@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 def model_grid(df, metric, x=0.05, y=0.05):
     df["w"] = np.exp(df[metric] - np.max(df[metric])) / np.sum(np.exp(df[metric] - np.max(df[metric]))) 
     criterium = "w"
-
+ 
     # Draw each cell as a scatter point with varying size and color
     g = sns.relplot( data=df,
-        x="Body", y="Tail",  size=criterium, color = "black",
+        x="Body", y="Tail",  size=criterium, color = "#006699",
         height=5, sizes=(25, 400), size_norm=(0,1), aspect = 1
     )
     g._legend.remove()
