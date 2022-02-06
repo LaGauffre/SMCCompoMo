@@ -3,9 +3,12 @@
 # jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute well_spec_500.ipynb
 # jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute well_spec_1000.ipynb
 # jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute well_spec_2000.ipynb
-jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute miss_spec_500.ipynb
-jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute miss_spec_1000.ipynb
-jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute miss_spec_2000.ipynb
+jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute well_spec_5000.ipynb
+
+# jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute miss_spec_500.ipynb
+# jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute miss_spec_1000.ipynb
+# jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute miss_spec_2000.ipynb
+# jupyter nbconvert --ExecutePreprocessor.timeout=-1 --to notebook --execute miss_spec_5000.ipynb
 
 
 
