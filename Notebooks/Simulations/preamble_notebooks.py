@@ -29,13 +29,16 @@ import datetime as dat
 well_spec_500 = pd.read_csv("../../Data/Simulations/simu_wellspec_500.csv")
 well_spec_1000 = pd.read_csv("../../Data/Simulations/simu_wellspec_1000.csv")
 well_spec_2000 = pd.read_csv("../../Data/Simulations/simu_wellspec_2000.csv")
-well_spec_df = pd.concat([ well_spec_500,well_spec_1000, well_spec_2000])
+well_spec_5000 = pd.read_csv("../../Data/Simulations/simu_wellspec_5000.csv")
+
+well_spec_df = pd.concat([ well_spec_500,well_spec_1000, well_spec_2000, well_spec_5000])
 
 miss_spec_500 = pd.read_csv("../../Data/Simulations/simu_missspec_500.csv")
 miss_spec_1000 = pd.read_csv("../../Data/Simulations/simu_missspec_1000.csv")
 miss_spec_2000 = pd.read_csv("../../Data/Simulations/simu_missspec_2000.csv")
 miss_spec_5000 = pd.read_csv("../../Data/Simulations/simu_missspec_5000.csv")
 miss_spec_df = pd.concat([ miss_spec_500,miss_spec_1000, miss_spec_2000,  miss_spec_5000])
+
 # # Importation of the simulated data itsef
 # Xs_250 = pickle.load( open( "../../Data/Simulations/sim_data_250.obj", "rb" ) )
 # Xs_500 = pickle.load( open( "../../Data/Simulations/sim_data_500.obj", "rb" ) )
